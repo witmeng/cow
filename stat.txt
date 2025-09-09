@@ -1,0 +1,250 @@
+{
+	"update": "2025-08-12",
+	"site_info": {
+		"0-zh--hant-ipshu-com-0.webpkgcache.com": {
+			"direct": 0,
+			"block": 1,
+			"recent": "2025-08-12"
+		},
+		"a.quora.com": {
+			"direct": 0,
+			"block": 1,
+			"recent": "2025-08-12"
+		},
+		"a.tile.openstreetmap.org": {
+			"direct": 0,
+			"block": 1,
+			"recent": "2025-08-12"
+		},
+		"ajax.googleapis.com": {
+			"direct": 1,
+			"block": 0,
+			"recent": "2025-08-12"
+		},
+		"analytics.google.com": {
+			"direct": 0,
+			"block": 1,
+			"recent": "2025-08-12"
+		},
+		"android.clients.google.com": {
+			"direct": 0,
+			"block": 2,
+			"recent": "2025-08-12"
+		},
+		"api-sr.amplitude.com": {
+			"direct": 0,
+			"block": 1,
+			"recent": "2025-08-12"
+		},
+		"b.tile.openstreetmap.org": {
+			"direct": 1,
+			"block": 0,
+			"recent": "2025-08-12"
+		},
+		"bot.sannysoft.com": {
+			"direct": 0,
+			"block": 2,
+			"recent": "2025-08-12"
+		},
+		"c.tile.openstreetmap.org": {
+			"direct": 1,
+			"block": 0,
+			"recent": "2025-08-12"
+		},
+		"cdn.amplitude.com": {
+			"direct": 0,
+			"block": 1,
+			"recent": "2025-08-12"
+		},
+		"cdn.ip2location.com": {
+			"direct": 0,
+			"block": 3,
+			"recent": "2025-08-12"
+		},
+		"cdn.ip2location.io": {
+			"direct": 0,
+			"block": 2,
+			"recent": "2025-08-12"
+		},
+		"cdn.ip2whois.com": {
+			"direct": 0,
+			"block": 1,
+			"recent": "2025-08-12"
+		},
+		"cdn.jsdelivr.net": {
+			"direct": 0,
+			"block": 3,
+			"recent": "2025-08-12"
+		},
+		"cdnjs.cloudflare.com": {
+			"direct": 0,
+			"block": 7,
+			"recent": "2025-08-12"
+		},
+		"challenges.cloudflare.com": {
+			"direct": 0,
+			"block": 1,
+			"recent": "2025-08-12"
+		},
+		"clients2.google.com": {
+			"direct": 0,
+			"block": 2,
+			"recent": "2025-08-12"
+		},
+		"dl.google.com": {
+			"direct": 0,
+			"block": 2,
+			"recent": "2025-08-12"
+		},
+		"encrypted-tbn0.gstatic.com": {
+			"direct": 0,
+			"block": 4,
+			"recent": "2025-08-12"
+		},
+		"fonts.googleapis.com": {
+			"direct": 0,
+			"block": 2,
+			"recent": "2025-08-12"
+		},
+		"fonts.gstatic.com": {
+			"direct": 0,
+			"block": 5,
+			"recent": "2025-08-12"
+		},
+		"googleads.g.doubleclick.net": {
+			"direct": 0,
+			"block": 1,
+			"recent": "2025-08-12"
+		},
+		"ip.ping0.cc": {
+			"direct": 0,
+			"block": 1,
+			"recent": "2025-08-12"
+		},
+		"ipaddress.my": {
+			"direct": 0,
+			"block": 3,
+			"recent": "2025-08-12"
+		},
+		"lh3.googleusercontent.com": {
+			"direct": 0,
+			"block": 1,
+			"recent": "2025-08-12"
+		},
+		"maxcdn.bootstrapcdn.com": {
+			"direct": 0,
+			"block": 1,
+			"recent": "2025-08-12"
+		},
+		"mc.yandex.ru": {
+			"direct": 0,
+			"block": 1,
+			"recent": "2025-08-12"
+		},
+		"mtalk.google.com": {
+			"direct": 0,
+			"block": 6,
+			"recent": "2025-08-12"
+		},
+		"ocsp.digicert.com": {
+			"direct": 0,
+			"block": 1,
+			"recent": "2025-08-12"
+		},
+		"ogads-pa.clients6.google.com": {
+			"direct": 0,
+			"block": 2,
+			"recent": "2025-08-12"
+		},
+		"optimizationguide-pa.googleapis.com": {
+			"direct": 0,
+			"block": 4,
+			"recent": "2025-08-12"
+		},
+		"pagead2.googlesyndication.com": {
+			"direct": 0,
+			"block": 2,
+			"recent": "2025-08-12"
+		},
+		"play.google.com": {
+			"direct": 1,
+			"block": 0,
+			"recent": "2025-08-12"
+		},
+		"redirector.gvt1.com": {
+			"direct": 0,
+			"block": 2,
+			"recent": "2025-08-12"
+		},
+		"skyquantum.net": {
+			"direct": 0,
+			"block": 2,
+			"recent": "2025-08-12"
+		},
+		"themexriver.com": {
+			"direct": 0,
+			"block": 1,
+			"recent": "2025-08-12"
+		},
+		"widget.trustpilot.com": {
+			"direct": 0,
+			"block": 2,
+			"recent": "2025-08-12"
+		},
+		"www.fbsbx.com": {
+			"direct": 0,
+			"block": 4,
+			"recent": "2025-08-12"
+		},
+		"www.google-analytics.com": {
+			"direct": 0,
+			"block": 2,
+			"recent": "2025-08-12"
+		},
+		"www.google.com": {
+			"direct": 0,
+			"block": 8,
+			"recent": "2025-08-12"
+		},
+		"www.googleadservices.com": {
+			"direct": 0,
+			"block": 2,
+			"recent": "2025-08-12"
+		},
+		"www.googletagmanager.com": {
+			"direct": 0,
+			"block": 7,
+			"recent": "2025-08-12"
+		},
+		"www.gstatic.com": {
+			"direct": 0,
+			"block": 7,
+			"recent": "2025-08-12"
+		},
+		"www.ip2location.com": {
+			"direct": 0,
+			"block": 2,
+			"recent": "2025-08-12"
+		},
+		"www.ip2location.io": {
+			"direct": 0,
+			"block": 2,
+			"recent": "2025-08-12"
+		},
+		"www.ip2whois.com": {
+			"direct": 0,
+			"block": 2,
+			"recent": "2025-08-12"
+		},
+		"www.ipaddress.my": {
+			"direct": 0,
+			"block": 2,
+			"recent": "2025-08-12"
+		},
+		"www.recaptcha.net": {
+			"direct": 0,
+			"block": 5,
+			"recent": "2025-08-12"
+		}
+	}
+}

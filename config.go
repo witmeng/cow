@@ -185,10 +185,17 @@ func isUserPasswdValid(val string) bool {
 type proxyParser struct{}
 
 func (p proxyParser) ProxySocks5(val string) {
-	if err := checkServerAddr(val); err != nil {
-		Fatal("parent socks server", err)
+	// 支援 socks5://user:pass@host:port 格式
+	var server string
+	if at := strings.LastIndex(val, "@"); at != -1 {
+		server = val
+	} else {
+		if err := checkServerAddr(val); err != nil {
+			Fatal("parent socks server", err)
+		}
+		server = val
 	}
-	parentProxy.add(newSocksParent(val))
+	parentProxy.add(newSocksParent(server))
 }
 
 func (pp proxyParser) ProxyHttp(val string) {

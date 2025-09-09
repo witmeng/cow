@@ -2,10 +2,11 @@ package main
 
 import (
 	"encoding/base64"
+	"strings"
 	"encoding/binary"
 	"errors"
 	"fmt"
-	ss "github.com/shadowsocks/shadowsocks-go/shadowsocks"
+	"github.com/shadowsocks/shadowsocks-go/shadowsocks"
 	"hash/crc32"
 	"io"
 	"math/rand"
@@ -493,8 +494,15 @@ var socksMsgVerMethodSelection = []byte{
 }
 
 // socks5 parent proxy
+// socksParent 結構，支援帳號密碼欄位
+// 用於儲存 socks5 代理伺服器資訊與驗證資訊
+// server 格式為 host:port，user/pass 為驗證資訊
+// 若 user 為空則不進行驗證
+//
 type socksParent struct {
 	server string
+	user   string // 帳號
+	pass   string // 密碼
 }
 
 type socksConn struct {
@@ -507,7 +515,21 @@ func (s socksConn) String() string {
 }
 
 func newSocksParent(server string) *socksParent {
-	return &socksParent{server}
+	// 支援 socks5://user:pass@host:port 格式
+	user := ""
+	pass := ""
+	addr := server
+	if at := strings.LastIndex(server, "@"); at != -1 {
+		auth := server[:at]
+		addr = server[at+1:]
+		if colon := strings.Index(auth, ":"); colon != -1 {
+			user = auth[:colon]
+			pass = auth[colon+1:]
+		} else {
+			user = auth
+		}
+	}
+	return &socksParent{server: addr, user: user, pass: pass}
 }
 
 func (sp *socksParent) getServer() string {
@@ -515,10 +537,14 @@ func (sp *socksParent) getServer() string {
 }
 
 func (sp *socksParent) genConfig() string {
+	if sp.user != "" {
+		return fmt.Sprintf("proxy = socks5://%s:%s@%s", sp.user, sp.pass, sp.server)
+	}
 	return fmt.Sprintf("proxy = socks5://%s", sp.server)
 }
 
 func (sp *socksParent) connect(url *URL) (net.Conn, error) {
+	// 連線 socks5 代理伺服器，支援帳號密碼驗證
 	c, err := net.Dial("tcp", sp.server)
 	if err != nil {
 		errl.Printf("can't connect to socks parent %s for %s: %v\n",
@@ -532,14 +558,27 @@ func (sp *socksParent) connect(url *URL) (net.Conn, error) {
 		}
 	}()
 
+	// RFC 1928: greeting
 	var n int
-	if n, err = c.Write(socksMsgVerMethodSelection); n != 3 || err != nil {
-		errl.Printf("sending ver/method selection msg %v n = %v\n", err, n)
-		hasErr = true
-		return nil, err
+	if sp.user != "" {
+		// 支援帳號密碼驗證 (RFC 1929)
+		// 0x05 0x01 0x02 (version 5, 1 method, username/password)
+		greet := []byte{0x5, 0x1, 0x2}
+		if n, err = c.Write(greet); n != 3 || err != nil {
+			errl.Printf("sending ver/method selection msg %v n = %v\n", err, n)
+			hasErr = true
+			return nil, err
+		}
+	} else {
+		// 無驗證
+		if n, err = c.Write(socksMsgVerMethodSelection); n != 3 || err != nil {
+			errl.Printf("sending ver/method selection msg %v n = %v\n", err, n)
+			hasErr = true
+			return nil, err
+		}
 	}
 
-	// version/method selection
+	// 讀取伺服器回應
 	repBuf := make([]byte, 2)
 	_, err = io.ReadFull(c, repBuf)
 	if err != nil {
@@ -547,13 +586,55 @@ func (sp *socksParent) connect(url *URL) (net.Conn, error) {
 		hasErr = true
 		return nil, err
 	}
-	if repBuf[0] != 5 || repBuf[1] != 0 {
-		errl.Printf("socks ver/method selection reply error ver %d method %d",
-			repBuf[0], repBuf[1])
+	if repBuf[0] != 5 {
+		errl.Printf("socks ver/method selection reply error ver %d method %d", repBuf[0], repBuf[1])
 		hasErr = true
 		return nil, err
 	}
-	// debug.Println("Socks version selection done")
+	if sp.user != "" {
+		if repBuf[1] != 2 {
+			errl.Printf("socks server does not accept username/password auth, method %d", repBuf[1])
+			hasErr = true
+			return nil, errors.New("socks server does not support username/password auth")
+		}
+		// RFC 1929: username/password auth
+		ulen := len(sp.user)
+		plen := len(sp.pass)
+		if ulen > 255 || plen > 255 {
+			hasErr = true
+			return nil, errors.New("username or password too long for socks5 auth")
+		}
+		// auth request: 0x01 ulen user plen pass
+		authReq := make([]byte, 3+ulen+plen)
+		authReq[0] = 0x1
+		authReq[1] = byte(ulen)
+		copy(authReq[2:], sp.user)
+		authReq[2+ulen] = byte(plen)
+		copy(authReq[3+ulen:], sp.pass)
+		if n, err = c.Write(authReq); n != len(authReq) || err != nil {
+			errl.Printf("send socks5 auth request err %v n %d\n", err, n)
+			hasErr = true
+			return nil, err
+		}
+		// auth reply: 0x01 status
+		reply := make([]byte, 2)
+		if n, err = io.ReadFull(c, reply); n != 2 || err != nil {
+			errl.Printf("read socks5 auth reply err %v n %d\n", err, n)
+			hasErr = true
+			return nil, err
+		}
+		if reply[1] != 0 {
+			errl.Printf("socks5 auth failed, status %d\n", reply[1])
+			hasErr = true
+			return nil, errors.New("socks5 username/password authentication failed")
+		}
+	} else {
+		if repBuf[1] != 0 {
+			errl.Printf("socks ver/method selection reply error method %d", repBuf[1])
+			hasErr = true
+			return nil, err
+		}
+	}
 
 	// send connect request
 	host := url.Host
@@ -581,18 +662,14 @@ func (sp *socksParent) connect(url *URL) (net.Conn, error) {
 		return nil, err
 	}
 
-	// I'm not clear why the buffer is fixed at 10. The rfc document does not say this.
-	// Polipo set this to 10 and I also observed the reply is always 10.
 	replyBuf := make([]byte, 10)
 	if n, err = c.Read(replyBuf); err != nil {
-		// Seems that socks server will close connection if it can't find host
 		if err != io.EOF {
 			errl.Printf("read socks reply err %v n %d\n", err, n)
 		}
 		hasErr = true
 		return nil, errors.New("connection failed (by socks server " + sp.server + "). No such host?")
 	}
-	// debug.Printf("Socks reply length %d\n", n)
 
 	if replyBuf[0] != 5 {
 		errl.Printf("socks reply connect %s VER %d not supported\n", url.HostPort, replyBuf[0])
@@ -611,6 +688,5 @@ func (sp *socksParent) connect(url *URL) (net.Conn, error) {
 	}
 
 	debug.Println("connected to:", url.HostPort, "via socks server:", sp.server)
-	// Now the socket can be used to pass data.
 	return socksConn{c, sp}, nil
 }
