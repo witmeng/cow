@@ -1,7 +1,7 @@
 {
 	"update": "2025-09-10",
 	"site_info": {
-		"httpbin.org": {
+		"example.com": {
 			"direct": 0,
 			"block": 4,
 			"recent": "2025-09-10"

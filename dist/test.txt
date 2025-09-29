@@ -1,5 +1,5 @@
 alwaysProxy = true
 listen = http://127.0.0.1:3080
-endpoint_proxy = socks5://coj07akuw6wm:lof7kssyiex9@asia-relay.onesproxy.vip:1337
-proxy = socks5://sdwan001:7fd8wOf3@210.245.146.108:1080
+endpoint_proxy = socks5://<username>:<password>@127.0.0.1:8080
+proxy = socks5://<username>:<password>@127.0.0.1:8080
 statFile = off

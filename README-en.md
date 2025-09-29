@@ -13,6 +13,50 @@ Current version: 0.9.8 [CHANGELOG](CHANGELOG)
 - Automatically identify blocked websites, only use parent proxy for those sites
 - Generate and serve PAC file for browser to bypass COW for best performance
   - Contain domains that can be directly accessed (recorded accoring to your visit history)
+- Supports up to three-level proxy chain (proxy + endpoint_proxy). When both are configured, the final egress IP seen by the destination site is provided by endpoint_proxy.
+
+## Three-level proxy (endpoint_proxy)
+
+COW can form up to three hops in the outbound path:
+
+- Client -> COW (listen)
+- First parent: proxy (optional)
+- Second parent: endpoint_proxy (optional)
+- Destination site (final target)
+
+Behavior and configuration:
+
+- If only proxy is configured, COW builds a two-level chain: Client -> COW -> proxy -> destination.
+- If both proxy and endpoint_proxy are configured, COW builds a three-level chain: Client -> COW -> proxy -> endpoint_proxy -> destination. The destination will see the IP address of endpoint_proxy.
+- Supported protocols for both proxy and endpoint_proxy: HTTP and SOCKS5. Authentication is supported (HTTP basic user:password, SOCKS5 username/password).
+
+Examples (put in rc file, e.g. rc.txt on Windows or ~/.cow/rc on Unix):
+
+    # Local proxy listen address
+    listen = http://127.0.0.1:7777
+
+    # First parent (proxy)
+    proxy = http://127.0.0.1:8080
+    proxy = http://user:password@127.0.0.1:8080
+    proxy = socks5://127.0.0.1:1080
+
+    # Second parent (endpoint_proxy)
+    endpoint_proxy = http://1.2.3.4:8080
+    endpoint_proxy = http://user:password@1.2.3.4:8080
+    endpoint_proxy = socks5://1.2.3.4:1080
+
+Supported combinations:
+
+- proxy: HTTP + endpoint_proxy: HTTP
+- proxy: HTTP + endpoint_proxy: SOCKS5
+- proxy: SOCKS5 + endpoint_proxy: HTTP
+- proxy: SOCKS5 + endpoint_proxy: SOCKS5
+
+Notes:
+
+- For HTTP parent proxy, COW sends an HTTP CONNECT to build the tunnel, then performs the next hop handshake within that tunnel.
+- For SOCKS5 parent proxy, COW performs SOCKS5 handshake and issues CONNECT for the target within the established link.
+- When endpoint_proxy is set, outbound traffic uses endpoint_proxy as the final egress; destination sees endpoint_proxy's IP.
 
 # Quickstart
 

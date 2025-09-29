@@ -19,6 +19,50 @@ COW 的设计目标是自动化，理想情况下用户无需关心哪些网站�
 - 自动检测网站是否被墙，仅对被墙网站使用二级代理
 - 自动生成包含直连网站的 PAC，访问这些网站时可绕过 COW
   - 内置[常见可直连网站](site_direct.go)，如国内社交、视频、银行、电商等网站（可手工添加）
+- 支援最多三級代理（proxy + endpoint_proxy），同時設定時最終出口 IP 以 endpoint_proxy 為準。
+
+### 三級代理（endpoint_proxy）
+
+COW 可形成最多三跳的代理鏈路：
+
+- Client -> COW (listen)
+- 第一級父代理：proxy（可選）
+- 第二級父代理：endpoint_proxy（可選）
+- 目標網站（最終目的地）
+
+行為與配置：
+
+- 僅設定 proxy 時，為二級代理：Client -> COW -> proxy -> 目標網站。
+- 同時設定 proxy 與 endpoint_proxy 時，為三級代理：Client -> COW -> proxy -> endpoint_proxy -> 目標網站。最終網站看到的出口 IP 以 endpoint_proxy 為準。
+- proxy 與 endpoint_proxy 皆支援 HTTP 與 SOCKS5，並支援認證（HTTP Basic 使用 user:password，SOCKS5 使用帳號/密碼）。
+
+範例（寫入 rc 檔案，例如 Windows 的 rc.txt 或 Unix 的 ~/.cow/rc）：
+
+    # 本地代理監聽位址
+    listen = http://127.0.0.1:7777
+
+    # 第一級父代理（proxy）
+    proxy = http://127.0.0.1:8080
+    proxy = http://user:password@127.0.0.1:8080
+    proxy = socks5://127.0.0.1:1080
+
+    # 第二級父代理（endpoint_proxy）
+    endpoint_proxy = http://1.2.3.4:8080
+    endpoint_proxy = http://user:password@1.2.3.4:8080
+    endpoint_proxy = socks5://1.2.3.4:1080
+
+支援的組合：
+
+- proxy: HTTP + endpoint_proxy: HTTP
+- proxy: HTTP + endpoint_proxy: SOCKS5
+- proxy: SOCKS5 + endpoint_proxy: HTTP
+- proxy: SOCKS5 + endpoint_proxy: SOCKS5
+
+備註：
+
+- 對 HTTP 父代理，COW 會先發送 HTTP CONNECT 建立隧道，之後在該隧道中完成下一跳的握手。
+- 對 SOCKS5 父代理，COW 會執行 SOCKS5 握手並在既有連線中發送 CONNECT 到目標。
+- 當設定了 endpoint_proxy 時，所有出站流量以 endpoint_proxy 為最終出口，目標站點看到的是 endpoint_proxy 的 IP。
 
 # 快速开始
 
@@ -102,6 +146,19 @@ COW 在配置文件所在目录下的 `stat` json 文件中记录经常访问网
   - 为避免误判，会以一定概率再次尝试直连访问
 - host 若一段时间没有访问会自动被删除（避免 `stat` 文件无限增长）
 - 内置网站列表和用户指定的网站不会出现在统计文件中
+
+### 禁用统计文件（statFile = off）
+
+- 若希望完全禁用站点访问统计文件的生成与定期保存，可在 rc 配置中设置：
+  
+      statFile = off
+  
+  也支持以下等价值：`none`、`disable`、`disabled`、`false`。设置为上述值时，COW 不会创建或更新 `stat` 与 `stat.bak` 文件，后台周期性存档任务亦不会启动。
+- 如需指定自定义路径以启用统计文件，请使用：
+  
+      statFile = <dir to rc file>/stat
+  
+  COW 需要对该目录具备写权限以更新统计文件。
 
 ## COW 如何检测被墙网站
 
