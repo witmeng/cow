@@ -439,12 +439,15 @@ func initSiteStat() {
 
 	// Dump site stat while running, so we don't always need to close cow to
 	// get updated stat.
-	go func() {
-		for {
-			time.Sleep(5 * time.Minute)
-			storeSiteStat(siteStatCont)
-		}
-	}()
+	// 以繁體中文註解：若使用者在 rc 中停用 statFile（解析為空字串），則不啟動週期性存檔以避免生成任何檔案。
+	if config.StatFile != "" {
+		go func() {
+			for {
+				time.Sleep(5 * time.Minute)
+				storeSiteStat(siteStatCont)
+			}
+		}()
+	}
 }
 
 const (
@@ -458,6 +461,11 @@ var storeLock sync.Mutex
 var siteStatFini bool
 
 func storeSiteStat(cont byte) {
+	// 以繁體中文註解：停用時不執行存檔，直接返回，避免產生臨時檔與 .bak 檔案
+	if config.StatFile == "" {
+		return
+	}
+
 	storeLock.Lock()
 	defer storeLock.Unlock()
 

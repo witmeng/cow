@@ -798,6 +798,14 @@ func maybeBlocked(err error) bool {
 // If direct connection fails, try parent proxies.
 func (c *clientConn) connect(r *Request, siteInfo *VisitCnt) (srvconn net.Conn, err error) {
 	var errMsg string
+	if config.EndpointProxy != "" {
+		// 若配置 endpoint_proxy，則優先使用 connectWithEndpointProxy
+		if srvconn, err = connectWithEndpointProxy(r.URL); err == nil {
+			return
+		}
+		errMsg = genErrMsg(r, nil, "Endpoint proxy connection failed.")
+		goto fail
+	}
 	if config.AlwaysProxy {
 		if srvconn, err = parentProxy.connect(r.URL); err == nil {
 			return
@@ -806,7 +814,6 @@ func (c *clientConn) connect(r *Request, siteInfo *VisitCnt) (srvconn net.Conn, 
 		goto fail
 	}
 	if siteInfo.AsBlocked() && !parentProxy.empty() {
-		// In case of connection error to socks server, fallback to direct connection
 		if srvconn, err = parentProxy.connect(r.URL); err == nil {
 			return
 		}
@@ -823,7 +830,6 @@ func (c *clientConn) connect(r *Request, siteInfo *VisitCnt) (srvconn net.Conn, 
 		}
 		errMsg = genErrMsg(r, nil, "Parent proxy and direct connection failed, maybe blocked site.")
 	} else {
-		// In case of error on direction connection, try parent server
 		if srvconn, err = connectDirect(r.URL, siteInfo); err == nil {
 			return
 		}
@@ -835,28 +841,17 @@ func (c *clientConn) connect(r *Request, siteInfo *VisitCnt) (srvconn net.Conn, 
 			errMsg = genErrMsg(r, nil, "Direct connection failed, always direct site.")
 			goto fail
 		}
-		// net.Dial does two things: DNS lookup and TCP connection.
-		// GFW may cause failure here: make it time out or reset connection.
-		// debug.Printf("type of err %T %v\n", err, err)
-
-		// RST during TCP handshake is valid and would return as connection
-		// refused error. My observation is that GFW does not use RST to stop
-		// TCP handshake.
-		// To simplify things and avoid error in my observation, always try
-		// parent proxy in case of Dial error.
 		var socksErr error
 		if srvconn, socksErr = parentProxy.connect(r.URL); socksErr == nil {
 			c.handleBlockedRequest(r, err)
 			if debug {
-				debug.Printf("cli(%s) direct connection failed, use parent proxy for %v\n",
-					c.RemoteAddr(), r)
+				debug.Printf("cli(%s) direct connection failed, use parent proxy for %v\n", c.RemoteAddr(), r)
 			}
 			return srvconn, nil
 		}
 		errMsg = genErrMsg(r, nil,
 			"Direct and parent proxy connection failed, maybe blocked site.")
 	}
-
 fail:
 	sendErrorPage(c, "504 Connection failed", err.Error(), errMsg)
 	return nil, errPageSent

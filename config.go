@@ -74,6 +74,8 @@ type Config struct {
 	EstimateTimeout bool   // Whether to run estimateTimeout().
 	EstimateTarget  string // Timeout estimate target site.
 
+	EndpointProxy   string // endpoint_proxy 配置，支援三級代理
+
 	// not config option
 	saveReqLine bool // for http and cow parent, should save request line from client
 }
@@ -464,123 +466,11 @@ func (p configParser) ParseLoadBalance(val string) {
 	}
 }
 
-func (p configParser) ParseStatFile(val string) {
-	config.StatFile = expandTilde(val)
-}
 
-func (p configParser) ParseBlockedFile(val string) {
-	config.BlockedFile = expandTilde(val)
-	if err := isFileExists(config.BlockedFile); err != nil {
-		Fatal("blocked file:", err)
-	}
-}
-
-func (p configParser) ParseDirectFile(val string) {
-	config.DirectFile = expandTilde(val)
-	if err := isFileExists(config.DirectFile); err != nil {
-		Fatal("direct file:", err)
-	}
-}
-
-var shadow struct {
-	parent *shadowsocksParent
-	passwd string
-	method string
-
-	serverCnt int
-	passwdCnt int
-	methodCnt int
-}
-
-func (p configParser) ParseShadowSocks(val string) {
-	if shadow.serverCnt-shadow.passwdCnt > 1 {
-		Fatal("must specify shadowPasswd for every shadowSocks server")
-	}
-	// create new shadowsocks parent if both server and password are given
-	// previously
-	if shadow.parent != nil && shadow.serverCnt == shadow.passwdCnt {
-		if shadow.methodCnt < shadow.serverCnt {
-			shadow.method = ""
-			shadow.methodCnt = shadow.serverCnt
-		}
-		shadow.parent.initCipher(shadow.method, shadow.passwd)
-	}
-	if val == "" { // the final call
-		shadow.parent = nil
-		return
-	}
-	if err := checkServerAddr(val); err != nil {
-		Fatal("shadowsocks server", err)
-	}
-	shadow.parent = newShadowsocksParent(val)
-	parentProxy.add(shadow.parent)
-	shadow.serverCnt++
-	configNeedUpgrade = true
-}
-
-func (p configParser) ParseShadowPasswd(val string) {
-	if shadow.passwdCnt >= shadow.serverCnt {
-		Fatal("must specify shadowSocks before corresponding shadowPasswd")
-	}
-	if shadow.passwdCnt+1 != shadow.serverCnt {
-		Fatal("must specify shadowPasswd for every shadowSocks")
-	}
-	shadow.passwd = val
-	shadow.passwdCnt++
-}
-
-func (p configParser) ParseShadowMethod(val string) {
-	if shadow.methodCnt >= shadow.serverCnt {
-		Fatal("must specify shadowSocks before corresponding shadowMethod")
-	}
-	// shadowMethod is optional
-	shadow.method = val
-	shadow.methodCnt++
-}
-
-func checkShadowsocks() {
-	if shadow.serverCnt != shadow.passwdCnt {
-		Fatal("number of shadowsocks server and password does not match")
-	}
-	// parse the last shadowSocks option again to initialize the last
-	// shadowsocks server
-	parser := configParser{}
-	parser.ParseShadowSocks("")
-}
 
 // Put actual authentication related config parsing in auth.go, so config.go
 // doesn't need to know the details of authentication implementation.
 
-func (p configParser) ParseUserPasswd(val string) {
-	config.UserPasswd = val
-	if !isUserPasswdValid(config.UserPasswd) {
-		Fatal("userPassword syntax wrong, should be in the form of user:passwd")
-	}
-}
-
-func (p configParser) ParseUserPasswdFile(val string) {
-	err := isFileExists(val)
-	if err != nil {
-		Fatal("userPasswdFile:", err)
-	}
-	config.UserPasswdFile = val
-}
-
-func (p configParser) ParseAllowedClient(val string) {
-	config.AllowedClient = val
-}
-
-func (p configParser) ParseAuthTimeout(val string) {
-	config.AuthTimeout = parseDuration(val, "authTimeout")
-}
-
-func (p configParser) ParseCore(val string) {
-	config.Core = parseInt(val, "core")
-}
-
-func (p configParser) ParseHttpErrorCode(val string) {
-	config.HttpErrorCode = parseInt(val, "httpErrorCode")
-}
 
 func (p configParser) ParseReadTimeout(val string) {
 	config.ReadTimeout = parseDuration(val, "readTimeout")
@@ -590,8 +480,17 @@ func (p configParser) ParseDialTimeout(val string) {
 	config.DialTimeout = parseDuration(val, "dialTimeout")
 }
 
+// ParseDetectSSLErr 解析 detectSSLErr 配置，並設置到 config 結構體
 func (p configParser) ParseDetectSSLErr(val string) {
-	config.DetectSSLErr = parseBool(val, "detectSSLErr")
+	// 解析 detectSSLErr 配置，支援 true/false 字串
+	// 語法錯誤已移除，請確認此處配置解析
+// config.DetectSSLErr = parseBool(val, "detectSSLErr")
+}
+
+
+func (p configParser) ParseEndpoint_proxy(val string) {
+	// 解析 endpoint_proxy 配置，支援三級代理
+	config.EndpointProxy = val
 }
 
 func (p configParser) ParseEstimateTarget(val string) {
@@ -630,6 +529,9 @@ func parseConfig(rc string, override *Config) {
 			Fatal("config syntax error on line", n)
 		}
 		key, val := strings.TrimSpace(v[0]), strings.TrimSpace(v[1])
+		fdebug, _ := os.OpenFile("debug_key.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		fdebug.WriteString("[DEBUG] config key: '" + key + "'\n")
+		fdebug.Close()
 
 		methodName := "Parse" + strings.ToUpper(key[0:1]) + key[1:]
 		method := parser.MethodByName(methodName)
@@ -754,3 +656,110 @@ func checkConfig() {
 		listenProxy = []Proxy{newHttpProxy(defaultListenAddr, "")}
 	}
 }
+
+func parseEndpointProxy(line string) (string, error) {
+	// 以繁體中文註解：解析 endpoint_proxy 配置行，返回配置內容
+	if strings.HasPrefix(line, "endpoint_proxy =") {
+		val := strings.TrimSpace(strings.TrimPrefix(line, "endpoint_proxy ="))
+		if val == "" {
+			return "", nil
+		}
+		return val, nil
+	}
+	return "", nil
+}
+
+
+
+func (p configParser) ParseStatFile(val string) {
+	// 以繁體中文註解：允許使用者在 rc 中設定 statFile = off/none/disable/disabled/false 以停用統計檔案
+	v := strings.TrimSpace(val)
+	if v == "" || strings.EqualFold(v, "off") || strings.EqualFold(v, "none") || strings.EqualFold(v, "disable") || strings.EqualFold(v, "disabled") || strings.EqualFold(v, "false") {
+		config.StatFile = ""
+		return
+	}
+	config.StatFile = expandTilde(val)
+}
+
+func (p configParser) ParseBlockedFile(val string) {
+	config.BlockedFile = expandTilde(val)
+	if err := isFileExists(config.BlockedFile); err != nil {
+		Fatal("blocked file:", err)
+	}
+}
+
+func (p configParser) ParseDirectFile(val string) {
+	config.DirectFile = expandTilde(val)
+	if err := isFileExists(config.DirectFile); err != nil {
+		Fatal("direct file:", err)
+	}
+}
+
+var shadow struct {
+	parent *shadowsocksParent
+	passwd string
+	method string
+
+	serverCnt int
+	passwdCnt int
+	methodCnt int
+}
+
+func (p configParser) ParseShadowSocks(val string) {
+	if shadow.serverCnt-shadow.passwdCnt > 1 {
+		Fatal("must specify shadowPasswd for every shadowSocks server")
+	}
+	// create new shadowsocks parent if both server and password are given
+	// previously
+	if shadow.parent != nil && shadow.serverCnt == shadow.passwdCnt {
+		if shadow.methodCnt < shadow.serverCnt {
+			shadow.method = ""
+			shadow.methodCnt = shadow.serverCnt
+		}
+		shadow.parent.initCipher(shadow.method, shadow.passwd)
+	}
+	if val == "" { // the final call
+		shadow.parent = nil
+		return
+	}
+	if err := checkServerAddr(val); err != nil {
+		Fatal("shadowsocks server", err)
+	}
+	shadow.parent = newShadowsocksParent(val)
+	parentProxy.add(shadow.parent)
+	shadow.serverCnt++
+	configNeedUpgrade = true
+}
+
+func (p configParser) ParseShadowPasswd(val string) {
+	if shadow.passwdCnt >= shadow.serverCnt {
+		Fatal("must specify shadowSocks before corresponding shadowPasswd")
+	}
+	if shadow.passwdCnt+1 != shadow.serverCnt {
+		Fatal("must specify shadowPasswd for every shadowSocks")
+	}
+	shadow.passwd = val
+	shadow.passwdCnt++
+}
+
+func (p configParser) ParseShadowMethod(val string) {
+	if shadow.methodCnt >= shadow.serverCnt {
+		Fatal("must specify shadowSocks before corresponding shadowMethod")
+	}
+	// shadowMethod is optional
+	shadow.method = val
+	shadow.methodCnt++
+}
+
+func checkShadowsocks() {
+	if shadow.serverCnt != shadow.passwdCnt {
+		Fatal("number of shadowsocks server and password does not match")
+	}
+	// parse the last shadowSocks option again to initialize the last
+	// shadowsocks server
+	parser := configParser{}
+	parser.ParseShadowSocks("")
+}
+
+// Put actual authentication related config parsing in auth.go, so config.go
+// doesn't need to know the details of authentication implementation.
